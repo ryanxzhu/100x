@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "apis": [
+    {
+      "identifier": "100x",
+      "source": "@100x/v1.0#1lcfe2alxm57a52",
+      "integrity": "sha512-qITkTpynl7k2lqWS/hfJzKTsu8IAQiruZWwM7/EBFcpjwJ36xOi0vRm51axv+kBv8nW9FgH2/+VLUyRQ+JHF0A==",
+      "installerVersion": "6.1.1"
+    }
+  ]
+}

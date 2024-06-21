@@ -7,6 +7,7 @@ import {
     TimeInForce,
 } from '100x-client/enums';
 import axios from 'axios';
+import { dp } from './utils.js';
 
 // Google Sheet authentication
 import { google } from 'googleapis';
@@ -16,6 +17,8 @@ const auth = new google.auth.GoogleAuth({
 });
 
 const MY_PRIVATE_KEY = `0x${process.env.PRI}`;
+const DIVIDER = 1000000000000000000;
+const DIFF = 2.5;
 
 const CONFIG = {
     debug: false,
@@ -26,25 +29,45 @@ const CONFIG = {
 
 const Client = new HundredXClient(MY_PRIVATE_KEY, CONFIG);
 
-async function placeOrder(price) {
+export async function bidEth(price, quantity) {
     const { error, order } = await Client.placeOrder({
         isBuy: true,
         orderType: OrderType.LIMIT_MAKER,
         price,
         productId: 1002,
-        quantity: 0.01,
+        quantity,
         timeInForce: TimeInForce.GTC,
     });
 
-    console.log(order);
+    return order;
 }
 
-// placeOrder(3550);
-// cancelAllOrders();
+export async function askEth(price, quantity) {
+    const { error, order } = await Client.placeOrder({
+        isBuy: false,
+        orderType: OrderType.LIMIT_MAKER,
+        price,
+        productId: 1002,
+        quantity,
+        timeInForce: TimeInForce.GTC,
+    });
 
-async function cancelAllOrders() {
+    return order;
+}
+
+export async function getPosition() {
+    const data = await Client.listPositions('ethperp');
+    return dp(data?.positions[0]?.quantity / DIVIDER, 2) || 0;
+}
+
+export async function getOrderBook() {
+    const result = await Client.getOrderBook('ethperp');
+    return result;
+}
+
+export async function cancelAllOrders() {
     const { success, error } = await Client.cancelOpenOrdersForProduct(1002);
-    if (success) console.log('all orders cancelled');
+    // if (success) console.log('all orders cancelled');
 }
 
 async function deposit(amount) {
@@ -75,14 +98,277 @@ async function getProducts() {
 //     return ethPrice;
 // }//
 
-async function getBinanceEthPrice() {
+export async function getBinanceEthPrice() {
     const apiURL = `https://www.binance.com/api/v3/ticker/price?symbol=ETHUSDT`;
     try {
         const data = await axios.get(apiURL);
-        const ethPrice = Number(data.data.price);
-        return ethPrice;
+        let ethPrice = Number(data.data.price);
+        return dp(ethPrice + DIFF, 1);
     } catch (error) {
         console.log(error);
+    }
+}
+
+export async function initialBid() {
+    const ethPrice = await getBinanceEthPrice();
+    const bidPrice = dp(ethPrice - 500, 1);
+    const order = await bidEth(bidPrice, 0.01);
+    return order.id;
+}
+
+export async function initialAsk() {
+    const ethPrice = await getBinanceEthPrice();
+    const askPrice = dp(ethPrice + 10, 1);
+    const order = await askEth(askPrice, 0.01);
+    return order.id;
+}
+
+export async function updateBid(orderId, price, quantity) {
+    const { order: order1, error: error1 } = await Client.cancelAndReplaceOrder(
+        orderId,
+        {
+            isBuy: true,
+            orderType: OrderType.LIMIT_MAKER,
+            price,
+            productId: 1002,
+            quantity,
+            timeInForce: TimeInForce.GTC,
+        }
+    );
+
+    if (
+        error1?.message === 'order not found' ||
+        error1?.message === 'order to cancel not found'
+    ) {
+        console.log(error1.message);
+        let { order, error } = await Client.placeOrder({
+            isBuy: true,
+            orderType: OrderType.LIMIT_MAKER,
+            price,
+            productId: 1002,
+            quantity,
+            timeInForce: TimeInForce.GTC,
+        });
+
+        console.log('update Bid');
+        console.log('new order');
+        console.log(order.id);
+        return [order.id, 1];
+    }
+
+    console.log('update Bid');
+    console.log('editing existing order');
+    console.log(order1.id);
+    return [order1.id, 0];
+}
+
+export async function updateAsk(orderId, price, quantity) {
+    const { order: order1, error: error1 } = await Client.cancelAndReplaceOrder(
+        orderId,
+        {
+            isBuy: false,
+            orderType: OrderType.LIMIT_MAKER,
+            price,
+            productId: 1002,
+            quantity,
+            timeInForce: TimeInForce.GTC,
+        }
+    );
+
+    if (
+        error1?.message === 'order not found' ||
+        error1?.message === 'order to cancel not found'
+    ) {
+        console.log(error1.message);
+        let { order, error } = await Client.placeOrder({
+            isBuy: false,
+            orderType: OrderType.LIMIT_MAKER,
+            price,
+            productId: 1002,
+            quantity,
+            timeInForce: TimeInForce.GTC,
+        });
+
+        console.log('update Ask');
+        console.log('new order');
+        console.log(order.id);
+        return [order.id, 1];
+    }
+
+    console.log('update Ask');
+    console.log('editing existing order');
+    console.log(order1.id);
+    return [order1.id, 0];
+}
+
+export async function getMidPrice() {
+    const { bids, asks } = await Client.getOrderBook('ethperp');
+    const bid = bids[0][0] / DIVIDER;
+    const ask = asks[0][0] / DIVIDER;
+    const mid = dp((bid + ask) / 2, 1);
+    return mid;
+}
+
+export async function getBidAskMid() {
+    const { bids, asks } = await Client.getOrderBook('ethperp');
+    const bid = dp(bids[0][0] / DIVIDER, 1);
+    const ask = dp(asks[0][0] / DIVIDER, 1);
+    const mid = dp((bid + ask) / 2, 1);
+    return { bid, ask, mid };
+}
+
+// export async function getMidPrice() {
+//     const apiURL = `https://www.binance.com/api/v3/ticker/price?symbol=ETHUSDT`;
+//     try {
+//         const { bids, asks } = await Client.getOrderBook('ethperp');
+//         const bid = dp(bids[0][0] / DIVIDER, 1);
+//         const ask = dp(asks[0][0] / DIVIDER, 1);
+
+//         const data = await axios.get(apiURL);
+//         let ethPrice = Number(data.data.price);
+//         const mid = dp(ethPrice + DIFF, 1);
+
+//         if (mid < bid) {
+//             console.log(`${mid}`, bid, ask);
+//         } else if (mid > ask) {
+//             console.log(bid, ask, `${mid}`);
+//         } else {
+//             console.log(bid, `${mid}`, ask);
+//         }
+
+//         return mid;
+//     } catch (error) {
+//         console.log(error);
+//         return false;
+//     }
+// }
+
+export async function wideLimitOrder(startingQuantity, mid = 0) {
+    const GAP = 5;
+    const PRICE_INCREMENT = 1;
+    const QUANTITY_INCREMENT = 0.01;
+    if (mid === 0) mid = await getMidPrice();
+
+    const startingBid = dp(mid - GAP, 1);
+    const startingAsk = dp(mid + GAP, 1);
+
+    console.log(startingBid, mid, startingAsk);
+
+    const orders = [];
+    const baseBid = {
+        isBuy: true,
+        orderType: OrderType.LIMIT_MAKER,
+        price: startingBid,
+        productId: 1002,
+        quantity: startingQuantity,
+        timeInForce: TimeInForce.GTC,
+    };
+
+    const baseAsk = {
+        isBuy: false,
+        orderType: OrderType.LIMIT_MAKER,
+        price: startingAsk,
+        productId: 1002,
+        quantity: startingQuantity,
+        timeInForce: TimeInForce.GTC,
+    };
+
+    orders.push(baseBid);
+    orders.push(baseAsk);
+    for (let i = 1; i < 20; i++) {
+        const newBid = { ...baseBid };
+        newBid.price += i * PRICE_INCREMENT * -1;
+        newBid.price = dp(newBid.price, 1);
+        newBid.quantity += i * QUANTITY_INCREMENT;
+        newBid.quantity = dp(newBid.quantity, 2);
+        orders.push(newBid);
+
+        const newAsk = { ...baseAsk };
+        newAsk.price += i * PRICE_INCREMENT;
+        newAsk.price = dp(newAsk.price, 1);
+        newAsk.quantity += i * QUANTITY_INCREMENT;
+        newAsk.quantity = dp(newAsk.quantity, 2);
+        orders.push(newAsk);
+    }
+
+    console.time('placeOrders');
+    Client.placeOrders(orders);
+    console.timeEnd('placeOrders');
+}
+
+// export async function tightLimitOrder(price, quantity, isBuy) {
+//     while (true) {
+//         try {
+//             const { order, error } = await Client.placeOrder({
+//                 isBuy,
+//                 orderType: OrderType.LIMIT_MAKER,
+//                 price,
+//                 productId: 1002,
+//                 quantity,
+//                 timeInForce: TimeInForce.GTC,
+//             });
+
+//             if (order.id) {
+//                 return order.id;
+//             }
+
+//             if (error.message === 'solver.match:: order would match') {
+//                 const sign = isBuy === true ? 1 : -1;
+//                 price -= 0.1 * sign;
+//                 price = dp(price, 1);
+//                 continue;
+//             }
+//         } catch (error) {}
+//     }
+// }
+
+export async function tightLimitOrder(quantity, mid = 0) {
+    const GAP = 0.1;
+    if (mid === 0) mid = await getMidPrice();
+
+    let bidPrice = dp(mid - GAP, 1);
+    let askPrice = dp(mid + GAP, 1);
+
+    console.log(bidPrice, mid, askPrice);
+
+    const bid = {
+        isBuy: true,
+        orderType: OrderType.LIMIT_MAKER,
+        price: bidPrice,
+        productId: 1002,
+        quantity,
+        timeInForce: TimeInForce.GTC,
+    };
+
+    const ask = {
+        isBuy: false,
+        orderType: OrderType.LIMIT_MAKER,
+        price: askPrice,
+        productId: 1002,
+        quantity,
+        timeInForce: TimeInForce.GTC,
+    };
+
+    placeLimitMakerOrder(bid);
+    placeLimitMakerOrder(ask);
+}
+
+async function placeLimitMakerOrder(orderInput) {
+    const increment = orderInput.isBuy === true ? -0.1 : 0.1;
+    const orderType = orderInput.isBuy === true ? 'bid' : 'ask';
+
+    while (true) {
+        const { error, order } = await Client.placeOrder(orderInput);
+
+        if (order.id) {
+            console.log(orderType, dp(order.price / DIVIDER, 1));
+            return order.id;
+        }
+
+        if (error.message === 'solver.match:: order would match') {
+            orderInput.price += increment;
+            orderInput.price = dp(orderInput.price, 1);
+        }
     }
 }
 
@@ -127,7 +413,6 @@ async function cont() {
 }
 
 // cont();
-Client.cancelAndReplaceOrder();
 async function cont2() {
     let oldEthPrice = 0;
     console.time('change');
@@ -141,6 +426,6 @@ async function cont2() {
     }
 }
 
-cont2();
+// cont2();
 
 // getEthData2();

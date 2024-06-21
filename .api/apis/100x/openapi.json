@@ -1,0 +1,874 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "100x rest",
+    "version": "unknown"
+  },
+  "servers": [
+    {
+      "url": "https://api.staging.100x.finance/"
+    }
+  ],
+  "components": {
+    "securitySchemes": {}
+  },
+  "security": [
+    {}
+  ],
+  "paths": {
+    "/v1/products": {
+      "get": {
+        "summary": "List Products",
+        "description": "Returns a list of products available to trade.",
+        "operationId": "list-products",
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "[\n  {\n    active: true,\n    baseAsset: \"0x2e234DAe75C793f67A35089C9d99245E1C58470b\",\n    symbol: \"ethusd-perp\",\n    id: 1,\n    increment: 1,\n    isMakerRebate: true,\n    makerFee: \"10000000000000000\",\n    max_quantity: \"1000000000000000000000000\",\n    min_quantity: \"100\",\n    oracle_ticker: \"\",\n    quoteAsset: \"0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f\",\n    takerFee: \"50000000000000000\",\n    type: \"PERP\",\n  },\n  // more products...\n]"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "\"error\""
+                  }
+                },
+                "schema": {
+                  "type": "string",
+                  "example": "error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/products/product-by-id/{productID}": {
+      "get": {
+        "summary": "Get Product By ID",
+        "description": "Return details for a specific product by id",
+        "operationId": "get-product",
+        "parameters": [
+          {
+            "name": "productID",
+            "in": "path",
+            "description": "1002, 1003, etc.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1002
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "// most numbers are in e18 decimals\n\n{\n  \"id\": 1002,  // the product id of the instrument\n  \"type\": \"PERP\", // the type of product\n  \"symbol\": \"ethperp\", // the symbol of the product\n  \"active\": true, // whether the product is tradeable\n  \"baseAsset\": \"WETH\", // the symbol of the base asset of the isntrument\n  \"quoteAsset\": \"USDB\", // the symbol of the quote asset of the instrument\n  \"minQuantity\": \"100000000000000\", // the minimum quantity allowed for a single order\n  \"maxQuantity\": \"100000000000000000000000\", // the maximum quantity allowed for a single order\n  \"increment\": \"10000000000000\", // the minimum price tick \n  \"takerFee\": \"200000000000000\", // taker fee in bips e.g. 2e14 = 2bps\n  \"makerFee\": \"50000000000000\", // maker fee in bips e.g. 5e13 = 0.5bps\n  \"isMakerRebate\": true, // is the maker fee being returned to the maker instead of charged to them\n  \"initialLongWeight\": \"950000000000000000\", // the initial margin risk weight for longs\n  \"initialShortWeight\": \"1050000000000000000\", // the initial margin risk weight for shorts\n  \"maintenanceLongWeight\": \"970000000000000000\", // the maintenance margin risk weight for longs\n  \"maintenanceShortWeight\": \"1030000000000000000\", // the maintenance margin risk weight for shorts\n  \"minLimitPriceMultiplier\": \"250000000000000000\", // the minimum allowed limit order price is the minLimitPriceMultiplier * markPrice\n  \"maxLimitPriceMultiplier\": \"4000000000000000000\", // the maximum allowed limit order price is the maxLimitPriceMultiplier * markPrice\n  \"oiDollarCap\": \"1000000000000000000000000000000\", // the maximum allowed open interest for the product in dollars, above this orders that add open interest will be rejected only orders that reduce open interest are allowed\n  \"baseAssetAddress\": \"0x4200000000000000000000000000000000000023\", // address of the base asset\n  \"quoteAssetAddress\": \"0x79a59c326c715ac2d31c169c85d1232319e341ce\", // address of the quote asset\n  \"markPrice\": \"3104025893791460427908\" // mark price of the instrument\n}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "example": 1002,
+                      "default": 0
+                    },
+                    "type": {
+                      "type": "string",
+                      "example": "PERP"
+                    },
+                    "symbol": {
+                      "type": "string",
+                      "example": "ethperp"
+                    },
+                    "active": {
+                      "type": "boolean",
+                      "example": true,
+                      "default": true
+                    },
+                    "baseAsset": {
+                      "type": "string",
+                      "example": "WETH"
+                    },
+                    "quoteAsset": {
+                      "type": "string",
+                      "example": "USDB"
+                    },
+                    "minQuantity": {
+                      "type": "string",
+                      "example": "100000000000000"
+                    },
+                    "maxQuantity": {
+                      "type": "string",
+                      "example": "100000000000000000000000"
+                    },
+                    "increment": {
+                      "type": "string",
+                      "example": "10000000000000"
+                    },
+                    "takerFee": {
+                      "type": "string",
+                      "example": "200000000000000"
+                    },
+                    "makerFee": {
+                      "type": "string",
+                      "example": "50000000000000"
+                    },
+                    "isMakerRebate": {
+                      "type": "boolean",
+                      "example": true,
+                      "default": true
+                    },
+                    "initialLongWeight": {
+                      "type": "string",
+                      "example": "950000000000000000"
+                    },
+                    "initialShortWeight": {
+                      "type": "string",
+                      "example": "1050000000000000000"
+                    },
+                    "maintenanceLongWeight": {
+                      "type": "string",
+                      "example": "970000000000000000"
+                    },
+                    "maintenanceShortWeight": {
+                      "type": "string",
+                      "example": "1030000000000000000"
+                    },
+                    "minLimitPriceMultiplier": {
+                      "type": "string",
+                      "example": "250000000000000000"
+                    },
+                    "maxLimitPriceMultiplier": {
+                      "type": "string",
+                      "example": "4000000000000000000"
+                    },
+                    "oiDollarCap": {
+                      "type": "string",
+                      "example": "1000000000000000000000000000000"
+                    },
+                    "baseAssetAddress": {
+                      "type": "string",
+                      "example": "0x4200000000000000000000000000000000000023"
+                    },
+                    "quoteAssetAddress": {
+                      "type": "string",
+                      "example": "0x79a59c326c715ac2d31c169c85d1232319e341ce"
+                    },
+                    "markPrice": {
+                      "type": "string",
+                      "example": "3104025893791460427908"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/time": {
+      "get": {
+        "summary": "Server Time",
+        "description": "Test connectivity to the Rest API and get the current server time.",
+        "operationId": "server-time",
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "1706892841944"
+                  }
+                },
+                "schema": {
+                  "type": "integer",
+                  "example": 1706892841944,
+                  "default": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/uiKlines": {
+      "get": {
+        "summary": "Kline/Candlestick Data",
+        "description": "Kline/candlestick bars for a symbol. Klines are uniquely identified by interval(timeframe) and startTime",
+        "operationId": "ui-klines",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "description": "ethperp, btcperp, etc.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "ethperp"
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1m",
+                "5m",
+                "15m",
+                "30m",
+                "1h",
+                "2h",
+                "4h",
+                "8h",
+                "1d",
+                "3d",
+                "1w"
+              ],
+              "default": "1m"
+            }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "description": "start timestamp in ms",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "description": "endTimestamp in ms",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "number of values to retrieve (max 1000)",
+            "schema": {
+              "type": "string",
+              "default": "500"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "[{\n  s: 12, // symbol - product_id\n  i: 60, // interval\n  o: 213000000, // open\n  c: 212000000, // close\n  h: 213200000, // high\n  l: 211990000, // low\n  v: 234567100000000, // volume\n  x: true, // closed\n}]"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/ticker/24hr": {
+      "get": {
+        "summary": "24hr Ticker Price Change Statistics",
+        "description": "24 hour rolling window price change statistics.",
+        "operationId": "24hr-ticker-data",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "description": "If no symbol is provided, ticker data for all assets will be returned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n  productId: 1,\n  volume: 69420,\n  low: 69,\n  high: 420,\n  priceChange: 280,\n  priceChangePercent: \"508.66\",\n  fundingRate: \"-0.01\"\n}"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/depth": {
+      "get": {
+        "summary": "Order Book / Depth",
+        "description": "Get bids and asks for a market",
+        "operationId": "book-depth",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "description": "ethperp, btcperp, etc.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "ethperp"
+            }
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "description": "The number of decimals to remove from prices.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of bids and asks to retrieve. Can be 5, 10 or 20.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n\tbids: [\n    [\n      87, // rounded price\n      15695045700553980, // size\n      15695045700553980 // cumulative size\n    ],\n    // ...\n  ], \n\tasks: [\n    [\n      88, // rounded price\n      47735434921662120, // size\n      47735434921662120 // cumulative size\n    ],\n    // ...\n  ]\n}\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/products/{productSymbol}": {
+      "get": {
+        "summary": "Get Product",
+        "description": "Return details for a specific product by symbol",
+        "operationId": "get-product-copy",
+        "parameters": [
+          {
+            "name": "productSymbol",
+            "in": "path",
+            "description": "ethperp, btcperp, etc.",
+            "schema": {
+              "type": "string",
+              "default": "ethperp"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n  active: true,\n  baseAsset: \"0x2e234DAe75C793f67A35089C9d99245E1C58470b\",\n  symbol: \"ethusd-perp\", \n  id: 1,\n  increment: 1,\n  isMakerRebate: true,\n  makerFee: \"10000000000000000\",\n  max_quantity: \"1000000000000000000000000\", \n  min_quantity: 100,\n  oracle_ticker: \"\", \n  quoteAsset: \"0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f\",\n  takerFee: \"50000000000000000\",\n  type: \"PERP\"\n}"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/new-order-margin": {
+      "get": {
+        "summary": "Margin Calculator",
+        "description": "Calculate the required margin for a new order.",
+        "operationId": "margin-calculator",
+        "parameters": [
+          {
+            "name": "isBuy",
+            "in": "query",
+            "description": "Whether the account is buying or selling.",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "price",
+            "in": "query",
+            "description": "The price for the trade in 1e18 (Wei) format.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productId",
+            "in": "query",
+            "description": "The ID of the product to trade.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "quantity",
+            "in": "query",
+            "description": "The quantity for the trade in 1e18 (Wei) format.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n\terror: \"\",\n\tsuccess: true,\n\tvalue: \"17449331829095744143007\"\n}"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n\terror: \"Missing symbol\",\n\tsuccess: false,\n\tvalue: \"\"\n}"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "404",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n\terror: \"Product not found\",\n\tsuccess: false,\n\tvalue: \"\"\n}"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "500",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n\terror: \"Unknown error message\",\n\tsuccess: false,\n\tvalue: \"\"\n}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/products/mid-price/{productSymbol}": {
+      "get": {
+        "summary": "Get product mid price",
+        "description": "Returns the mid price of the order book for a specified product.",
+        "operationId": "get-product-mid-price",
+        "parameters": [
+          {
+            "name": "productSymbol",
+            "in": "path",
+            "description": "ethperp, btcperp, etc.",
+            "schema": {
+              "type": "string",
+              "default": "ethperp"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n  \"price\": \"3252650000000000000000\"\n}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "price": {
+                      "type": "string",
+                      "example": "3252650000000000000000"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n  \"price\": \"\"\n}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "price": {
+                      "type": "string",
+                      "example": ""
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "500",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n  \"price\": \"\"\n}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "price": {
+                      "type": "string",
+                      "example": ""
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/trade-history": {
+      "get": {
+        "summary": "Trade History",
+        "description": "Get trade history for an account",
+        "operationId": "trade-history",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "description": "ethperp, btcperp, etc.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "ethperp"
+            }
+          },
+          {
+            "name": "lookback",
+            "in": "query",
+            "description": "The amount of trades to lookback from the current, this is maximum 500",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "description": "address of the account to look at",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "0xEEF7faba495b4875d67E3ED8FB3a32433d3DB3b3"
+            }
+          },
+          {
+            "name": "subAccountId",
+            "in": "query",
+            "description": "subaccount id of the account",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n\tbids: [\n    [\n      87, // rounded price\n      15695045700553980, // size\n      15695045700553980 // cumulative size\n    ],\n    // ...\n  ], \n\tasks: [\n    [\n      88, // rounded price\n      47735434921662120, // size\n      47735434921662120 // cumulative size\n    ],\n    // ...\n  ]\n}\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    },
+    "/v1/trade-history (COPY)": {
+      "get": {
+        "summary": "Trade History (COPY)",
+        "description": "Get trade history for an account",
+        "operationId": "trade-history-copy",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "description": "ethperp, btcperp, etc.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "ethperp"
+            }
+          },
+          {
+            "name": "lookback",
+            "in": "query",
+            "description": "The amount of trades to lookback from the current, this is maximum 500",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "description": "address of the account to look at",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "0xEEF7faba495b4875d67E3ED8FB3a32433d3DB3b3"
+            }
+          },
+          {
+            "name": "subAccountId",
+            "in": "query",
+            "description": "subaccount id of the account",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n\tbids: [\n    [\n      87, // rounded price\n      15695045700553980, // size\n      15695045700553980 // cumulative size\n    ],\n    // ...\n  ], \n\tasks: [\n    [\n      88, // rounded price\n      47735434921662120, // size\n      47735434921662120 // cumulative size\n    ],\n    // ...\n  ]\n}\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    }
+  },
+  "x-readme": {
+    "headers": []
+  },
+  "x-readme-fauxas": true
+}
