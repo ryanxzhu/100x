@@ -13,73 +13,22 @@ import {
     getBidAskMid,
     bidEth,
     askEth,
+    bidEthLimit,
+    askEthLimit,
+    getBalance,
+    exitPosition,
+    bidEthStaggered,
+    askEthStaggered,
+    staggeredBid,
 } from './script.js';
 import { dp } from './utils.js';
 
-const DIVIDER = 1000000000000000000;
+const QUANTITY = 0.5;
+const POSITION_LIMIT = 1;
+const POSITION_LIMIT2 = 5;
 
-async function run() {
-    let oldPrice = 0;
-    // while (true) {
-    let price = await getBinanceEthPrice();
-    // if (price === oldPrice) continue;
-
-    // oldPrice = price;
-    // await cancelAllOrders();
-    tightLimitOrder(dp(price + 2, 1), 0.4432, true);
-    // tightLimitOrder(dp(price + 1, 1), 0.5, false);
-    // }
-}
-
-// run();
-
-async function run2() {
-    let orderId = await initialAsk();
-    let oldPrice = 0;
-    while (true) {
-        const price = await getBinanceEthPrice();
-        if (price === oldPrice) continue;
-        oldPrice = price;
-        const newPrice = dp(price + 0.5, 1);
-        console.log(newPrice);
-        orderId = await updateAsk(orderId, newPrice, 0.01);
-    }
-}
-
-// run2();
-
-async function run3() {
-    // while (true) {
-    //     let price = await getBinanceEthPrice();
-    //     console.log(price);
-    // }
-    const record = [];
-
-    while (true) {
-        const resultPromise = getOrderBook();
-        const pricePromise = getMidPrice();
-
-        const [result, price] = await Promise.all([
-            resultPromise,
-            pricePromise,
-        ]);
-        const { bids, asks } = result;
-        const bid = dp(bids[0][0] / DIVIDER, 1);
-        const ask = dp(asks[0][0] / DIVIDER, 1);
-        const mid = dp((bids[0][0] / DIVIDER + asks[0][0] / DIVIDER) / 2, 1);
-        const spread = dp(ask - bid, 1);
-        const diff = dp(mid - price, 1);
-        console.log(price, diff, '|', bid, mid, ask, spread);
-        record.push(diff);
-        if (record.length > 200) {
-            const ave =
-                record.reduce((acc, curr) => acc + curr, 0) / record.length;
-            console.log(ave);
-        }
-    }
-}
-
-// run3();
+let oldPosition = 0;
+let tradeCounter2 = 0;
 
 async function run4() {
     let oldMid = 0;
@@ -119,21 +68,48 @@ async function run5() {
 }
 
 // run5();
-// listPositions();
 
 async function run6() {
     let bidOrderId = '';
     let askOrderId = '';
     let tradeCounter = 0;
+    let tradeCounter2 = -1;
+    let oldPosition = 0;
+    let doBid = true;
+    let doAsk = true;
     while (true) {
+        await cancelAllOrders();
+        const balancePromise = getBalance();
         const dataPromise = getBidAskMid();
         const binancePricePromise = getBinanceEthPrice();
         const positionPromise = getPosition();
-        const [data, binancePrice, position] = await Promise.all([
+        const [balance, data, binancePrice, position] = await Promise.all([
+            balancePromise,
             dataPromise,
             binancePricePromise,
             positionPromise,
         ]);
+
+        if (oldPosition !== position) {
+            tradeCounter2++;
+            oldPosition = position;
+        }
+
+        console.log(
+            'balance:',
+            balance,
+            'position:',
+            position,
+            'tradeCounter:',
+            tradeCounter2
+        );
+
+        // if (balance < 4000) {
+        //     await exitPosition();
+        //     return;
+        // }
+
+        if (!data) continue;
         const { bid, ask, mid } = data;
 
         if (Math.abs(binancePrice - mid) > 1) {
@@ -143,42 +119,273 @@ async function run6() {
             continue;
         }
 
-        let adjustBid = 0;
-        let adjustAsk = 0;
-        if (position > 0.1) {
+        let adjustBid = -0.1;
+        let adjustAsk = 0.1;
+        if (position > POSITION_LIMIT) {
             console.log('uh oh, too long!');
-            adjustBid = -0.1;
+            adjustAsk += -0.1;
+            adjustBid += -0.1;
         }
-        if (position < -0.1) {
+        if (position < -POSITION_LIMIT) {
             console.log('uh oh, too short!');
-            adjustAsk = 0.1;
+            adjustBid += 0.1;
+            adjustAsk += 0.1;
         }
+
+        if (position > POSITION_LIMIT2) {
+            console.log('way too long!');
+            doBid = false;
+        }
+        if (position < -POSITION_LIMIT2) {
+            console.log('way too short!');
+            doAsk = false;
+        }
+
         const finalBid = dp(bid + adjustBid, 1);
         const finalAsk = dp(ask + adjustAsk, 1);
-        console.log(finalAsk);
-        console.log(finalBid);
-        console.log('-------');
-        const bidPromise = updateBid(bidOrderId, finalBid, 0.01);
-        const askPromise = updateAsk(askOrderId, finalAsk, 0.01);
-        const [bidResponse, askResponse] = await Promise.all([
-            bidPromise,
-            askPromise,
-        ]);
-        const [bidId, bidIncrement] = bidResponse;
-        bidOrderId = bidId;
-        const [askId, askIncrement] = askResponse;
-        askOrderId = askId;
-        tradeCounter += bidIncrement;
-        tradeCounter += askIncrement;
-        console.log('tradeCounter:', tradeCounter);
+        console.log(finalBid, bid, ask, finalAsk);
+        if (doBid && doAsk) {
+            console.log('bid and ask');
+            const bidPromise = bidEthStaggered(finalBid, QUANTITY);
+            const askPromise = askEthStaggered(finalAsk, QUANTITY);
+            await Promise.all([bidPromise, askPromise]);
+        } else if (doBid) {
+            console.log('only bid');
+            await bidEthStaggered(finalBid, QUANTITY);
+        } else if (doAsk) {
+            console.log('only ask');
+            await askEthStaggered(finalAsk, QUANTITY);
+        }
+        doBid = true;
+        doAsk = true;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        console.log('------------------------');
     }
 }
 
-run6();
-
 async function run7() {
-    const position = await getPosition();
-    console.log(position);
+    await cancelAllOrders();
+    let oldBinancePrice = 0;
+    let oldPosition = 0;
+    let tradeCounter2 = -1;
+    let doBid = true;
+    let doAsk = true;
+
+    while (true) {
+        const binancePrice = await getBinanceEthPrice();
+        console.log(oldBinancePrice, binancePrice);
+        if (oldBinancePrice === binancePrice) continue;
+
+        await cancelAllOrders();
+        const balancePromise = getBalance();
+        const dataPromise = getBidAskMid();
+        const binancePricePromise = getBinanceEthPrice();
+        const positionPromise = getPosition();
+        const [balance, data, binancePrice2, position] = await Promise.all([
+            balancePromise,
+            dataPromise,
+            binancePricePromise,
+            positionPromise,
+        ]);
+
+        if (oldPosition !== position) {
+            tradeCounter2++;
+            oldPosition = position;
+        }
+
+        oldBinancePrice = binancePrice2;
+
+        console.log(
+            'balance:',
+            balance,
+            'position:',
+            position,
+            'tradeCounter:',
+            tradeCounter2
+        );
+
+        // if (balance < 3000) {
+        //     await exitPosition();
+        //     return;
+        // }
+
+        if (!data) continue;
+        const { bid, ask, mid } = data;
+
+        if (Math.abs(binancePrice2 - mid) > 1) {
+            console.log(`It's trending!`);
+            console.log('binance price:', binancePrice2, '100x mid:', mid);
+            await cancelAllOrders();
+            continue;
+        }
+
+        let adjustBid = -0.1;
+        let adjustAsk = 0.1;
+        if (position > POSITION_LIMIT) {
+            console.log('uh oh, too long!');
+            adjustAsk += -0.1;
+            adjustBid += -0.1;
+        }
+        if (position < -POSITION_LIMIT) {
+            console.log('uh oh, too short!');
+            adjustBid += 0.1;
+            adjustAsk += 0.1;
+        }
+
+        if (position > POSITION_LIMIT2) {
+            console.log('way too long!');
+            doBid = false;
+        }
+        if (position < -POSITION_LIMIT2) {
+            console.log('way too short!');
+            doAsk = false;
+        }
+
+        const finalBid = dp(bid + adjustBid, 1);
+        const finalAsk = dp(ask + adjustAsk, 1);
+        console.log(finalBid, bid, ask, finalAsk);
+        if (doBid && doAsk) {
+            console.log('bid and ask');
+            const bidPromise = bidEthStaggered(finalBid, QUANTITY);
+            const askPromise = askEthStaggered(finalAsk, QUANTITY);
+            await Promise.all([bidPromise, askPromise]);
+        } else if (doBid) {
+            console.log('only bid');
+            await bidEthStaggered(finalBid, QUANTITY);
+        } else if (doAsk) {
+            console.log('only ask');
+            await askEthStaggered(finalAsk, QUANTITY);
+        }
+        doBid = true;
+        doAsk = true;
+        console.log('------------------------');
+    }
 }
 
-// run7();
+async function run8() {
+    await cancelAllOrders();
+    let oldBinancePrice = 0;
+    let bidOrderId = '';
+    let askOrderId = '';
+
+    while (true) {
+        const binancePrice = await getBinanceEthPrice();
+        console.log(oldBinancePrice, binancePrice);
+        if (Math.abs(oldBinancePrice - binancePrice) < 0.5) continue;
+
+        await cancelAllOrders();
+        const balancePromise = getBalance();
+        const dataPromise = getBidAskMid();
+        const binancePricePromise = getBinanceEthPrice();
+        const positionPromise = getPosition();
+        const [balance, data, binancePrice2, position] = await Promise.all([
+            balancePromise,
+            dataPromise,
+            binancePricePromise,
+            positionPromise,
+        ]);
+
+        if (oldPosition !== position) {
+            tradeCounter2++;
+            oldPosition = position;
+        }
+
+        oldBinancePrice = binancePrice2;
+
+        if (balance < 7500) {
+            await exitPosition();
+            return;
+        }
+
+        if (!data) continue;
+
+        const { bid, ask, mid } = data;
+
+        console.log(
+            'balance:',
+            balance,
+            'position:',
+            position,
+            'tradeCounter:',
+            tradeCounter2,
+            'market bid:',
+            bid,
+            'market ask:',
+            ask
+        );
+
+        if (Math.abs(position) < 1) {
+            const bidPromise = staggeredBid(bid - 10, 2.5, 3, 2.5, true);
+            const askPromise = staggeredBid(ask + 10, 2.5, 3, 2.5, false);
+            await Promise.all([bidPromise, askPromise]);
+            continue;
+        }
+
+        await getToNeutral();
+    }
+}
+
+async function getToNeutral() {
+    let oldBinancePrice = 0;
+    while (true) {
+        const binancePrice = await getBinanceEthPrice();
+        console.log(oldBinancePrice, binancePrice);
+        if (oldBinancePrice === binancePrice) continue;
+
+        await cancelAllOrders();
+        const balancePromise = getBalance();
+        const dataPromise = getBidAskMid();
+        const binancePricePromise = getBinanceEthPrice();
+        const positionPromise = getPosition();
+        const [balance, data, binancePrice2, position] = await Promise.all([
+            balancePromise,
+            dataPromise,
+            binancePricePromise,
+            positionPromise,
+        ]);
+
+        if (oldPosition !== position) {
+            tradeCounter2++;
+            oldPosition = position;
+        }
+
+        oldBinancePrice = binancePrice2;
+
+        if (!data) continue;
+
+        const { bid, ask, mid } = data;
+
+        console.log(
+            'balance:',
+            balance,
+            'position:',
+            position,
+            'tradeCounter:',
+            tradeCounter2,
+            'market bid:',
+            bid,
+            'market ask:',
+            ask
+        );
+
+        if (Math.abs(position) < 1) return;
+
+        if (position >= 1) {
+            console.log('only asking:', bid, Math.abs(position));
+            await askEthLimit(bid, Math.abs(position));
+            continue;
+        }
+
+        if (position <= -1) {
+            console.log('only bidding:', ask, Math.abs(position));
+            await bidEthLimit(ask, Math.abs(position));
+        }
+    }
+}
+
+async function runOverall() {
+    await run8();
+    await exitPosition();
+}
+
+runOverall();
